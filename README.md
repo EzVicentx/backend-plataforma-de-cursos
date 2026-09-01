@@ -1,232 +1,125 @@
-# Backend - Plataforma de Cursos (NestJS + Prisma + PostgreSQL)
+# Plataforma de Cursos — API
 
-API REST que substitui o JSON Server do front `Lab03N2_Plataforma_de_Cursos`.
-Mesmas rotas, mesmos nomes de campo, mesmos ids — o front funciona sem alterar uma linha.
+Backend da Plataforma de Cursos, feito com NestJS e Prisma em cima de PostgreSQL.
 
-**Entidades:** usuarios, categorias, cursos, modulos, aulas, matriculas, progressoAulas,
-avaliacoes, trilhas, trilhasCursos, certificados, planos, assinaturas, pagamentos (14 CRUDs).
+Substitui o JSON Server que o front usava em dev. As rotas e os nomes dos campos são os mesmos,
+então o front funciona sem precisar mudar nada.
 
----
+Front: https://github.com/EzVicentx/Lab03N2_Plataforma_de_Cursos
 
-## 0. Pré-requisitos
+## Stack
 
-Node 20+ e um PostgreSQL rodando. Se não tiver o Postgres instalado, sobe num container:
+- NestJS 11
+- Prisma 7 (driver adapter `@prisma/adapter-pg`)
+- PostgreSQL 17
+- class-validator para validação
+- Swagger em `/api`
 
-```bash
-docker run --name pg-cursos \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=plataforma_cursos \
-  -p 5432:5432 -d postgres:16
-```
+## Rodando
 
----
-
-## 1. Criar o projeto e instalar as dependências
+Precisa ter Node 20+ e um PostgreSQL rodando na 5432.
 
 ```bash
-npm i -g @nestjs/cli
-nest new backend-plataforma-de-cursos
-cd backend-plataforma-de-cursos
-
-npm install -D prisma tsx
-npm install @prisma/client @prisma/adapter-pg dotenv
-npm install class-validator class-transformer
-npm install --save @nestjs/swagger
+npm install
+cp .env.example .env      # no Windows: copy .env.example .env
 ```
 
-Conectar na pasta ao repositório do GitHub:
-
-```bash
-git init
-git remote add origin https://github.com/EzVicentx/backend-plataforma-de-cursos.git
-git branch -M main
-```
-
----
-
-## 2. Inicializar o Prisma
-
-```bash
-npx prisma init
-```
-
-Isso cria a pasta `prisma/`, o `prisma.config.ts` e o `.env`.
-
-**Copie destes arquivos deste pacote:**
-
-- `prisma/schema.prisma` → os 14 modelos com relacionamentos e cascade
-- `prisma.config.ts` → aponta schema, migrations e o comando de seed
-
-Crie o `.env` (use o `.env.example` como base):
-
-```bash
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/plataforma_cursos?schema=public"
-PORT=3001
-```
-
-Rode a migration e gere o client:
+Ajusta a `DATABASE_URL` no `.env` com a sua senha do Postgres. Depois:
 
 ```bash
 npx prisma migrate dev --name init
 npx prisma generate
-```
-
-> No Prisma 7 o `migrate dev` **não** roda mais o `generate` sozinho — por isso os dois comandos.
-
----
-
-## 3. Prisma Service
-
-```bash
-nest generate module prisma
-nest generate service prisma
-```
-
-Depois substitua pelos arquivos deste pacote:
-
-- `src/prisma/prisma.service.ts` — estende `PrismaClient` usando o adapter `PrismaPg`
-- `src/prisma/prisma.module.ts` — marcado como `@Global()` e com `exports: [PrismaService]`
-
----
-
-## 4. Gerar os 14 recursos (CRUD)
-
-```bash
-nest g resource usuarios --no-spec
-nest g resource categorias --no-spec
-nest g resource cursos --no-spec
-nest g resource modulos --no-spec
-nest g resource aulas --no-spec
-nest g resource matriculas --no-spec
-nest g resource progresso-aulas --no-spec
-nest g resource avaliacoes --no-spec
-nest g resource trilhas --no-spec
-nest g resource trilhas-cursos --no-spec
-nest g resource certificados --no-spec
-nest g resource planos --no-spec
-nest g resource assinaturas --no-spec
-nest g resource pagamentos --no-spec
-```
-
-Em cada um escolha **REST API** e responda **Yes** para gerar os entry points do CRUD.
-
-Depois copie por cima toda a pasta `src/` deste pacote. Cada módulo tem:
-
-```
-src/cursos/
-├── cursos.controller.ts     rotas HTTP (GET, POST, PUT, PATCH, DELETE)
-├── cursos.module.ts         importa o PrismaModule
-├── cursos.service.ts        regra de negócio + chamadas do Prisma
-└── dto/
-    ├── create-curso.dto.ts  validação de entrada (class-validator)
-    └── update-curso.dto.ts  PartialType do create
-```
-
-E o `src/app.module.ts` já vem com os 14 módulos registrados.
-
----
-
-## 5. main.ts, validação e Swagger
-
-Copie `src/main.ts` e `src/common/filters/prisma-exception.filter.ts`. Eles ligam:
-
-- `ValidationPipe` global com `whitelist: true`
-- CORS liberado (o Vite roda em `http://localhost:5173`)
-- Swagger em `http://localhost:3001/api`
-- Tradução dos erros do Prisma → HTTP (P2002 = 409, P2003 = 400, P2025 = 404)
-
-Copie também o `nest-cli.json`, que habilita o plugin do Swagger (evita ter que escrever
-`@ApiProperty` em todos os campos — o Nest infere pelos tipos do TypeScript).
-
-Ajuste o `tsconfig.build.json` para o Nest não tentar compilar a pasta do Prisma:
-
-```json
-{
-  "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "prisma", "prisma.config.ts"]
-}
-```
-
----
-
-## 6. Popular o banco com os dados do db.json
-
-Copie `prisma/seed.ts` (já tem os mesmos registros do `db.json` do front) e rode:
-
-```bash
 npx prisma db seed
-```
-
----
-
-## 7. Rodar e testar
-
-```bash
 npm run start:dev
 ```
 
-- API: <http://localhost:3001>
-- Swagger: <http://localhost:3001/api>
+A API sobe na 3001 (é a porta que o front espera). Swagger em http://localhost:3001/api.
 
-Testes rápidos:
+O seed popula o banco com os mesmos dados que estavam no `db.json` do front, então dá pra abrir a
+aplicação e já ter cursos, planos e usuários cadastrados.
 
-```bash
-curl http://localhost:3001/cursos
-curl http://localhost:3001/planos
+## Estrutura
 
-curl -X POST http://localhost:3001/categorias \
-  -H "Content-Type: application/json" \
-  -d '{"id":"cat-3","nome":"Mobile","descricao":"Apps Android e iOS"}'
-
-curl -X DELETE http://localhost:3001/categorias/cat-3
+```
+src/
+├── main.ts                 bootstrap, CORS, ValidationPipe e Swagger
+├── app.module.ts
+├── prisma/                 PrismaService + PrismaModule (global)
+├── common/filters/         converte erro do Prisma em resposta HTTP
+└── <recurso>/              um módulo por entidade
+    ├── *.controller.ts
+    ├── *.service.ts
+    └── dto/
 ```
 
----
+Todo recurso segue o mesmo formato, então se você entendeu `cursos/` entendeu os outros treze.
 
-## 8. Ligar no front-end
+## Endpoints
 
-O front já aponta para `http://localhost:3001` por padrão. Só um detalhe:
+São 14 recursos, todos com CRUD completo:
+
+`usuarios` · `categorias` · `cursos` · `modulos` · `aulas` · `matriculas` · `progressoAulas` ·
+`avaliacoes` · `trilhas` · `trilhasCursos` · `certificados` · `planos` · `assinaturas` · `pagamentos`
+
+| Verbo | Rota | O que faz |
+| --- | --- | --- |
+| GET | `/cursos` | lista tudo |
+| GET | `/cursos/:id` | busca um |
+| POST | `/cursos` | cria |
+| PUT | `/cursos/:id` | atualiza (substitui) |
+| PATCH | `/cursos/:id` | atualiza parcial |
+| DELETE | `/cursos/:id` | remove |
+
+Vale pra qualquer um dos recursos, é só trocar `cursos` pelo nome.
+
+## Algumas decisões
+
+**Ids são string, não int.** O front gera o id no cliente (`cur-1a2b3c`) e manda junto no POST.
+Os DTOs aceitam `id` opcional; se não vier nada o Prisma gera um cuid.
+
+**Datas são string no formato `2026-05-10`.** Com `DateTime` o Prisma devolveria
+`2026-05-10T00:00:00.000Z` e o front, que só imprime o valor cru na tabela, ia mostrar isso na tela.
+
+**PUT e PATCH fazem a mesma coisa.** O front usa PUT, o PATCH ficou porque é o que o Nest gera
+por padrão e não custa nada manter.
+
+**DELETE devolve o registro apagado em vez de 204.** O `api.ts` do front chama `response.json()`
+no delete, e corpo vazio quebraria a chamada.
+
+**As relações são todas `onDelete: Cascade`.** Sem isso, apagar um curso pela tela estouraria erro
+de foreign key por causa dos módulos e matrículas pendurados nele.
+
+**`nivel`, `tipoConteudo` e `status` são string com `@IsIn` no DTO** em vez de enum do Postgres.
+A validação acontece do mesmo jeito e evita acoplar os tipos gerados do Prisma nos DTOs. Se quiser
+enum de verdade é só declarar no schema e trocar por `@IsEnum`.
+
+## Erros
+
+O `PrismaExceptionFilter` traduz os erros do Prisma antes de sair pro cliente:
+
+- `P2002` (unique violado) → 409
+- `P2003` (foreign key inválida) → 400
+- `P2025` (registro não existe) → 404
+
+Sem isso qualquer email duplicado viraria um 500 genérico.
+
+## Scripts
 
 ```bash
-# no repositório do front, rode SÓ o Vite (o npm start subiria o json-server na 3001 e daria conflito)
-npm run dev
+npm run start:dev        # watch mode
+npm run build
+npx prisma studio        # visualizar o banco no navegador
+npx prisma migrate reset # zera o banco e reaplica as migrations
+npx prisma db seed
 ```
 
-Se quiser deixar explícito, crie um `.env` no front:
+## Detalhes chatos
 
-```bash
-VITE_API_URL=http://localhost:3001
-```
+O `tsconfig.build.json` exclui `prisma` e `prisma.config.ts`, senão o Nest tenta compilar esses
+arquivos e a pasta `dist` sai com a estrutura errada.
 
----
+Se der `Cannot find module '../generated/prisma/client'`, é porque faltou rodar `npx prisma generate`.
+O client é gerado em `src/generated/` e não vai pro repositório.
 
-## Decisões de projeto (vale citar no relatório)
-
-| Decisão | Motivo |
-| --- | --- |
-| `id String @id @default(cuid())` | O front cria os ids (`cur-1a2b3c`) e envia no POST. O DTO aceita `id` opcional; sem ele o Prisma gera um cuid. |
-| Datas como `String` (`"2026-05-10"`) | O front renderiza a data crua. Com `DateTime` o Prisma devolveria `2026-05-10T00:00:00.000Z` e quebraria a exibição. |
-| `nivel`, `tipoConteudo`, `status` como `String` + `@IsIn(...)` | Validação garantida no DTO sem acoplar os tipos gerados do Prisma. Para virar `enum` do Postgres, é só declarar o enum no schema e trocar o `@IsIn` por `@IsEnum`. |
-| `PUT` **e** `PATCH` no controller | O front usa `PUT`; o `PATCH` fica como bônus da API. |
-| `DELETE` retornando o registro apagado | O front faz `response.json()` no delete — um `204 No Content` quebraria a chamada. |
-| `onDelete: Cascade` nas relações | Apagar um curso pela tela não estoura erro de chave estrangeira. |
-| `preco` como `Float` | O front chama `preco.toLocaleString()`; `Decimal` viria serializado como string. |
-
----
-
-## Comandos úteis
-
-```bash
-npx prisma studio            # navegar no banco pelo navegador
-npx prisma migrate reset     # zerar o banco e reaplicar as migrations
-npx prisma db seed           # repopular os dados
-npm run start:dev            # API em modo watch
-```
-
-## Publicar no GitHub
-
-```bash
-git add .
-git commit -m "feat: API REST da plataforma de cursos com NestJS, Prisma e PostgreSQL"
-git push -u origin main
-```
+Rodando junto com o front, use `npm run dev` lá e não `npm start`, que subiria o JSON Server na 3001
+e brigaria com esta API pela porta.
