@@ -1,0 +1,221 @@
+// Plataforma de Cursos - modelo de dados
+// Espelha o db.json usado pelo front-end (Lab03N2_Plataforma_de_Cursos).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nomeCompleto String
+  email        String   @unique
+  senhaHash    String
+  dataCadastro String
+
+  cursosMinistrados Curso[]         @relation("InstrutorDoCurso")
+  matriculas        Matricula[]
+  progressoAulas    ProgressoAula[]
+  avaliacoes        Avaliacao[]
+  certificados      Certificado[]
+  assinaturas       Assinatura[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id        String @id @default(cuid())
+  nome      String
+  descricao String
+
+  cursos  Curso[]
+  trilhas Trilha[]
+
+  @@map("categorias")
+}
+
+model Curso {
+  id             String @id @default(cuid())
+  titulo         String
+  descricao      String
+  instrutorId    String
+  categoriaId    String
+  nivel          String
+  dataPublicacao String
+  totalAulas     Int
+  totalHoras     Int
+
+  instrutor Usuario   @relation("InstrutorDoCurso", fields: [instrutorId], references: [id], onDelete: Cascade)
+  categoria Categoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+
+  modulos       Modulo[]
+  matriculas    Matricula[]
+  avaliacoes    Avaliacao[]
+  trilhasCursos TrilhaCurso[]
+  certificados  Certificado[]
+
+  @@index([instrutorId])
+  @@index([categoriaId])
+  @@map("cursos")
+}
+
+model Modulo {
+  id      String @id @default(cuid())
+  cursoId String
+  titulo  String
+  ordem   Int
+
+  curso Curso  @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  aulas Aula[]
+
+  @@index([cursoId])
+  @@map("modulos")
+}
+
+model Aula {
+  id             String @id @default(cuid())
+  moduloId       String
+  titulo         String
+  tipoConteudo   String
+  urlConteudo    String
+  duracaoMinutos Int
+  ordem          Int
+
+  modulo         Modulo          @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  progressoAulas ProgressoAula[]
+
+  @@index([moduloId])
+  @@map("aulas")
+}
+
+model Matricula {
+  id            String  @id @default(cuid())
+  usuarioId     String
+  cursoId       String
+  dataMatricula String
+  dataConclusao String?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  curso   Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, cursoId])
+  @@map("matriculas")
+}
+
+model ProgressoAula {
+  id            String  @id @default(cuid())
+  usuarioId     String
+  aulaId        String
+  dataConclusao String?
+  status        String
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  aula    Aula    @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, aulaId])
+  @@map("progresso_aulas")
+}
+
+model Avaliacao {
+  id            String @id @default(cuid())
+  usuarioId     String
+  cursoId       String
+  nota          Int
+  comentario    String
+  dataAvaliacao String
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  curso   Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@index([cursoId])
+  @@map("avaliacoes")
+}
+
+model Trilha {
+  id          String @id @default(cuid())
+  titulo      String
+  descricao   String
+  categoriaId String
+
+  categoria     Categoria     @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  trilhasCursos TrilhaCurso[]
+  certificados  Certificado[]
+
+  @@index([categoriaId])
+  @@map("trilhas")
+}
+
+model TrilhaCurso {
+  id       String @id @default(cuid())
+  trilhaId String
+  cursoId  String
+  ordem    Int
+
+  trilha Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  curso  Curso  @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@unique([trilhaId, cursoId])
+  @@map("trilhas_cursos")
+}
+
+model Certificado {
+  id                String  @id @default(cuid())
+  usuarioId         String
+  cursoId           String
+  trilhaId          String?
+  codigoVerificacao String  @unique
+  dataEmissao       String
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  curso   Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  trilha  Trilha? @relation(fields: [trilhaId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId])
+  @@map("certificados")
+}
+
+model Plano {
+  id           String @id @default(cuid())
+  nome         String
+  descricao    String
+  preco        Float
+  duracaoMeses Int
+
+  assinaturas Assinatura[]
+
+  @@map("planos")
+}
+
+model Assinatura {
+  id         String @id @default(cuid())
+  usuarioId  String
+  planoId    String
+  dataInicio String
+  dataFim    String
+
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  plano      Plano       @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  pagamentos Pagamento[]
+
+  @@index([usuarioId])
+  @@map("assinaturas")
+}
+
+model Pagamento {
+  id                 String @id @default(cuid())
+  assinaturaId       String
+  valorPago          Float
+  dataPagamento      String
+  metodoPagamento    String
+  idTransacaoGateway String
+
+  assinatura Assinatura @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+
+  @@index([assinaturaId])
+  @@map("pagamentos")
+}
